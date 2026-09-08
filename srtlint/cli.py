@@ -3,10 +3,35 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 from .parser import SubtitleError, parse
+
+
+def _check_file(path: Path, lenient: bool) -> dict:
+    result = {"path": str(path), "ok": False, "cues": 0, "warnings": [], "error": None}
+
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        result["error"] = str(exc)
+        return result
+    except UnicodeDecodeError as exc:
+        result["error"] = f"not valid utf-8 ({exc})"
+        return result
+
+    try:
+        cues, warnings = parse(content, lenient=lenient)
+    except SubtitleError as exc:
+        result["error"] = str(exc)
+        return result
+
+    result["ok"] = True
+    result["cues"] = len(cues)
+    result["warnings"] = warnings
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -21,33 +46,30 @@ def main(argv: list[str] | None = None) -> int:
         help="warn instead of failing on recoverable issues (bad index order, "
         "loose timecode formatting, out-of-order cues, empty text, ...)",
     )
+    ap.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format: human-readable text (default) or a single JSON "
+        "array of per-file results, for consumption by CI",
+    )
     args = ap.parse_args(argv)
 
-    had_errors = False
+    results = [_check_file(path, args.lenient) for path in args.files]
+    had_errors = any(r["error"] is not None for r in results)
 
-    for path in args.files:
-        try:
-            content = path.read_text(encoding="utf-8")
-        except OSError as exc:
-            print(f"{path}: {exc}", file=sys.stderr)
-            had_errors = True
-            continue
-        except UnicodeDecodeError as exc:
-            print(f"{path}: not valid utf-8 ({exc})", file=sys.stderr)
-            had_errors = True
-            continue
+    if args.format == "json":
+        print(json.dumps(results, indent=2))
+        return 1 if had_errors else 0
 
-        try:
-            cues, warnings = parse(content, lenient=args.lenient)
-        except SubtitleError as exc:
-            print(f"{path}: {exc}", file=sys.stderr)
-            had_errors = True
+    for result in results:
+        path = result["path"]
+        if result["error"] is not None:
+            print(f"{path}: {result['error']}", file=sys.stderr)
             continue
-
-        for warning in warnings:
+        for warning in result["warnings"]:
             print(f"{path}: warning: {warning}")
-
-        print(f"{path}: ok ({len(cues)} cues)")
+        print(f"{path}: ok ({result['cues']} cues)")
 
     return 1 if had_errors else 0
 

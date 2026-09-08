@@ -46,6 +46,25 @@ movie.srt: ok (142 cues)
 Multiple files can be checked in one run; the exit code is 1 if any file
 failed.
 
+Pass `--format json` to get a single JSON array on stdout instead, one
+object per file, for consumption by CI:
+
+```
+$ srtlint --format json movie.srt
+[
+  {
+    "path": "movie.srt",
+    "ok": true,
+    "cues": 142,
+    "warnings": [],
+    "error": null
+  }
+]
+```
+
+A file that fails to parse gets `"ok": false` and a non-null `"error"`
+instead of a `"cues"` count.
+
 ## Installing
 
 No dependencies, standard library only. Run directly:
@@ -63,5 +82,6 @@ $ srtlint movie.srt
 
 ## Status
 
-Early skeleton: parsing and the checks above work. Not yet covered: SRT
-writing/reformatting, encoding detection beyond UTF-8, WebVTT support.
+Early skeleton: parsing, the checks above, and JSON output work. Not yet
+covered: SRT writing/reformatting, encoding detection beyond UTF-8, WebVTT
+support.
