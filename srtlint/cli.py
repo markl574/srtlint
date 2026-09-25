@@ -7,6 +7,7 @@ import json
 import sys
 from pathlib import Path
 
+from .encoding import sniff_encoding
 from .parser import SubtitleError, parse
 
 
@@ -14,12 +15,19 @@ def _check_file(path: Path, lenient: bool) -> dict:
     result = {"path": str(path), "ok": False, "cues": 0, "warnings": [], "error": None}
 
     try:
-        content = path.read_text(encoding="utf-8")
+        raw = path.read_bytes()
     except OSError as exc:
         result["error"] = str(exc)
         return result
+
+    try:
+        content = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
-        result["error"] = f"not valid utf-8 ({exc})"
+        guess = sniff_encoding(raw)
+        if guess:
+            result["error"] = f"not valid utf-8, looks like {guess}: re-save the file as utf-8 ({exc})"
+        else:
+            result["error"] = f"not valid utf-8 ({exc})"
         return result
 
     try:

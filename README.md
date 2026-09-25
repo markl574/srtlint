@@ -65,6 +65,17 @@ $ srtlint --format json movie.srt
 A file that fails to parse gets `"ok": false` and a non-null `"error"`
 instead of a `"cues"` count.
 
+Files that aren't UTF-8 also count as a parse failure, but since SRT has
+no encoding declaration, "not valid utf-8" alone isn't actionable —
+srtlint takes a guess at what the file actually is (UTF-16, UTF-32, or
+Windows-1252, the common cases for subtitles saved by older tools) and
+says so:
+
+```
+$ srtlint old.srt
+old.srt: not valid utf-8, looks like windows-1252: re-save the file as utf-8 (...)
+```
+
 ## Installing
 
 No dependencies, standard library only. Run directly:
@@ -82,6 +93,6 @@ $ srtlint movie.srt
 
 ## Status
 
-Early skeleton: parsing, the checks above, and JSON output work. Not yet
-covered: SRT writing/reformatting, encoding detection beyond UTF-8, WebVTT
-support.
+Early skeleton: parsing, the checks above, JSON output, and non-UTF-8
+encoding detection work. Not yet covered: SRT writing/reformatting (a
+`--fix` mode), WebVTT support.

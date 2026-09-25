@@ -100,6 +100,16 @@ class CliJsonTests(unittest.TestCase):
             self.assertEqual(code, 1)
             self.assertIn("malformed timing line", err.getvalue())
 
+    def test_utf16_file_gets_a_specific_error(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "utf16.srt"
+            path.write_bytes(b"\xff\xfe" + VALID.encode("utf-16-le"))
+            err = io.StringIO()
+            with redirect_stderr(err):
+                code = main([str(path)])
+            self.assertEqual(code, 1)
+            self.assertIn("looks like utf-16-le", err.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()
